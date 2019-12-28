@@ -1,0 +1,14 @@
+# Blender MTL File: 'scene.blend'
+# Material Count: 1
+
+newmtl Stone5ok17Scanl
+Ns 54.901961
+Ka 0.588200 0.588200 0.588200
+Kd 0.588200 0.588200 0.588200
+Ks 0.045000 0.045000 0.045000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Stone5ok17Diff.jpg
+map_Ka Stone5ok17Diff.jpg
