@@ -46,7 +46,7 @@ GLuint lightColorLoc;
 float lastX = 320, lastY = 320;  //mouse
 float yaw, pitch;
 
-gps::Camera myCamera(glm::vec3(0.0f, 0.0f, 2.5f), glm::vec3(0.0f, 0.0f, -10.0f));
+gps::Camera myCamera(glm::vec3(0.0f, 0.0f, 4.0f), glm::vec3(0.0f, 0.0f, 4.0f));
 float cameraSpeed = 0.05f;
 
 bool pressedKeys[1024];
@@ -78,7 +78,6 @@ gps::Shader sunShader;
 std::vector<const GLchar*> faces;
 
 GLfloat lightAngle;
-
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -115,8 +114,8 @@ void windowResizeCallback(GLFWwindow* window, int width, int height)
 	GLint projLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-	/*sunShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));*/
+	sunShader.useShaderProgram();
+	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 	//set Viewport transform
 	glViewport(0, 0, retina_width, retina_height);
@@ -189,7 +188,7 @@ void processMovement()
 		myCamera.move(gps::MOVE_RIGHT, cameraSpeed);
 	}
 
-	/*if (pressedKeys[GLFW_KEY_J]) {
+	if (pressedKeys[GLFW_KEY_J]) {
 
 		lightAngle += 0.3f;
 		if (lightAngle > 360.0f)
@@ -206,7 +205,7 @@ void processMovement()
 		glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
 		myCustomShader.useShaderProgram();
 		glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
-	}*/
+	}
 }
 
 //glm::mat4 computeLightSpaceTrMatrix()
@@ -318,7 +317,7 @@ void initShaders()
 	mySkyBox.Load(faces);
 	skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
 
-	//myCustomShader.loadShader("shaders/sunShader.vert", "shaders/sunShader.frag");
+	sunShader.loadShader("shaders/sunShader.vert", "shaders/sunShader.frag");
 }
 
 void initUniforms()
@@ -347,12 +346,12 @@ void initUniforms()
 	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
 
 	//set light color
-	lightColor = glm::vec3(1.0f, 0.0f, 0.0f); //white light
+	lightColor = glm::vec3(1.0f, 1.0f, 1.0f); //white light
 	lightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor");
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
-	/*sunShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));*/
+	sunShader.useShaderProgram();
+	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 	skyboxShader.useShaderProgram();
 	view = myCamera.getViewMatrix();
@@ -364,30 +363,25 @@ void initUniforms()
 	glm::value_ptr(projection));
 }
 
+void drawRain() {
+	
+}
+
 void renderScene()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	myCustomShader.useShaderProgram();
 	processMovement();
 
-	myCustomShader.useShaderProgram();
-	//processMovement();
-
-	//initialize the view matrix
 	view = myCamera.getViewMatrix();
-	//send view matrix data to shader	
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-	//initialize the model matrix
 	model = glm::mat4(1.0f);
-	//create model matrix
 	model = glm::rotate(model, glm::radians(angle), glm::vec3(0, 1, 0));
-	//send model matrix data to shader	
 	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-	//create normal matrix
 	normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-	//send normal matrix data to shader
 	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 	
 	ground.Draw(myCustomShader);
@@ -415,17 +409,18 @@ void renderScene()
 	mySkyBox.Draw(skyboxShader, view, projection);
 
 	//draw a white cube around the light
-	/*sunShader.useShaderProgram();
+	sunShader.useShaderProgram();
 
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+	/*glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
-	model = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.5f, 1.0f, 0.0f));
+	model = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
 	model = glm::translate(model, lightDir);
 	model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));*/
 
-	sun.Draw(sunShader);*/
+	sun.Draw(sunShader);
 }
+
 
 int main(int argc, const char * argv[]) {
 

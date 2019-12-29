@@ -7,7 +7,6 @@ out vec4 fColor;
 in vec2 fragTexCoords;
 
 //lighting
-//uniform vec3 lightPosEye;
 uniform	mat3 normalMatrix;
 
 uniform	vec3 lightDir;
@@ -20,7 +19,7 @@ vec3 ambient;
 float ambientStrength = 1f;
 vec3 diffuse;
 vec3 specular;
-float specularStrength = 1.0f;
+float specularStrength = 0.5f;
 float shininess = 32.0f;
 
 float constant = 1.0f;
@@ -40,6 +39,7 @@ void computeLightComponents()
 	vec3 normalEye = normalize(normalMatrix * normal);	
 	
 	//compute light direction
+	//lightDirN = normalize(lightDir);
 	lightDirN = normalize(lightPosEye - fragPosEye.xyz);
 	
 	//compute view direction 
@@ -50,16 +50,30 @@ void computeLightComponents()
 
 	//compute distance to light
 	float dist = length(lightPosEye - fragPosEye.xyz);
+
 	//compute attenuation
 	att = 1.0f / (constant + linear * dist + quadratic * (dist * dist));
 
 	specCoeff = pow(max(dot(normalEye, halfVector), 0.0f), shininess);
 }
 
+float computeFog()
+{
+ 	float fogDensity = 0.1f;
+	float fragmentDistance = length(fragPosEye);
+	float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2));
+
+	return clamp(fogFactor, 0.0f, 1.0f);
+}
+
+
 void main() 
 {
 	computeLightComponents();
 	
+	float fogFactor = computeFog();
+	vec4 fogColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
+
 	vec3 baseColor = vec3(1.0f, 0.55f, 0.0f);//orange
 	
 	ambient = att * ambientStrength * lightColor;
@@ -72,5 +86,6 @@ void main()
 
 	vec3 color = min((ambient + diffuse) + specular, 1.0f);
     
-    fColor = vec4(color, 1.0f);
+    	//fColor = vec4(color, 1.0f);
+	fColor = fogColor * (1 - fogColor) + color * fogFactor;
 }

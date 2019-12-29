@@ -19,5 +19,4 @@ void main()
 	fragTexCoords = vTexCoords;
 	normal = vNormal;
 	gl_Position = projection * view * model * vec4(vPosition, 1.0f);
-	
 }
