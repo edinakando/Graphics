@@ -23,26 +23,39 @@ namespace gps {
     {
         return glm::lookAt(cameraPosition, cameraPosition + cameraDirection , glm::vec3(0.0f, 1.0f, 0.0f));
     }
+
+	float Camera::isCameraInsideBoundingBox(MOVE_DIRECTION direction, float speed)
+	{
+		glm::vec3 point = getCameraNewPosition(direction, speed);
+		for (gps::BoundingBox box : boundingBoxes) {
+			if ((point.x >= box.min.x && point.x <= box.max.x) &&
+				(point.y >= box.min.y && point.y <= box.max.y) &&
+				(point.z >= box.min.z && point.z <= box.max.z))
+				return true;
+		}
+		return false;
+	}
     
+	glm::vec3 Camera::getCameraNewPosition(MOVE_DIRECTION direction, float speed) {
+		switch (direction) {
+			case MOVE_FORWARD:
+				return cameraPosition + cameraDirection * speed;
+				
+			case MOVE_BACKWARD:
+				return cameraPosition - cameraDirection * speed;
+				
+			case MOVE_RIGHT:
+				return cameraPosition + cameraRightDirection * speed;
+
+			case MOVE_LEFT:
+				return cameraPosition - cameraRightDirection * speed;
+		}
+	}
+
     void Camera::move(MOVE_DIRECTION direction, float speed)
     {
-        switch (direction) {
-            case MOVE_FORWARD:
-                cameraPosition += cameraDirection * speed;
-                break;
-                
-            case MOVE_BACKWARD:
-                cameraPosition -= cameraDirection * speed;
-                break;
-                
-            case MOVE_RIGHT:
-                cameraPosition += cameraRightDirection * speed;
-                break;
-                
-            case MOVE_LEFT:
-                cameraPosition -= cameraRightDirection * speed;
-                break;
-        }
+		if (!isCameraInsideBoundingBox(direction, speed))
+			cameraPosition = getCameraNewPosition(direction, speed);
     }
     
 	/*
@@ -59,5 +72,4 @@ namespace gps {
 		cameraDirection.y = sin(glm::radians(pitch));
 		cameraDirection.z = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
     }
-    
 }

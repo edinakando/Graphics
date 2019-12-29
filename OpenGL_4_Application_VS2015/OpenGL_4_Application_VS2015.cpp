@@ -9,6 +9,7 @@
 #define GLEW_STATIC
 
 #include <iostream>
+#include <math.h>
 #include "glm/glm.hpp"//core glm functionality
 #include "glm/gtc/matrix_transform.hpp"//glm extension for generating common transformation matrices
 #include "glm/gtc/matrix_inverse.hpp"
@@ -46,7 +47,7 @@ GLuint lightColorLoc;
 float lastX = 320, lastY = 320;  //mouse
 float yaw, pitch;
 
-gps::Camera myCamera(glm::vec3(0.0f, 0.0f, 4.0f), glm::vec3(0.0f, 0.0f, 4.0f));
+gps::Camera myCamera(glm::vec3(0.0f, 2.0f, 4.0f), glm::vec3(0.0f, 0.0f, 4.0f));
 float cameraSpeed = 0.05f;
 
 bool pressedKeys[1024];
@@ -74,10 +75,13 @@ gps::SkyBox mySkyBox;
 gps::Shader skyboxShader;
 
 gps::Shader sunShader;
+gps::Shader rainShader;
 
 std::vector<const GLchar*> faces;
 
 GLfloat lightAngle;
+
+gps::BoundingBox boundingBoxes[100];
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -159,7 +163,6 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 
 void processMovement()
 {
-
 	if (pressedKeys[GLFW_KEY_Q]) {
 		angle += 0.1f;
 		if (angle > 360.0f)
@@ -188,24 +191,32 @@ void processMovement()
 		myCamera.move(gps::MOVE_RIGHT, cameraSpeed);
 	}
 
-	if (pressedKeys[GLFW_KEY_J]) {
-
-		lightAngle += 0.3f;
-		if (lightAngle > 360.0f)
-			lightAngle -= 360.0f;
-		glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
-		myCustomShader.useShaderProgram();
-		glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
+	if (pressedKeys[GLFW_KEY_P]) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 
-	if (pressedKeys[GLFW_KEY_L]) {
-		lightAngle -= 0.3f;
-		if (lightAngle < 0.0f)
-			lightAngle += 360.0f;
-		glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
-		myCustomShader.useShaderProgram();
-		glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
+	if (pressedKeys[GLFW_KEY_O]) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
+
+	//if (pressedKeys[GLFW_KEY_J]) {
+
+	//	lightAngle += 0.3f;
+	//	if (lightAngle > 360.0f)
+	//		lightAngle -= 360.0f;
+	//	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
+	//	myCustomShader.useShaderProgram();
+	//	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
+	//}
+
+	//if (pressedKeys[GLFW_KEY_L]) {
+	//	lightAngle -= 0.3f;
+	//	if (lightAngle < 0.0f)
+	//		lightAngle += 360.0f;
+	//	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
+	//	myCustomShader.useShaderProgram();
+	//	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
+	//}
 }
 
 //glm::mat4 computeLightSpaceTrMatrix()
@@ -219,6 +230,36 @@ void processMovement()
 //	return lightProjection * lightView;
 //}
 
+gps::BoundingBox createBoundingBox(gps::Model3D object) {
+	gps::BoundingBox boundingBox;
+
+	for (int i = 0; i < object.meshes.size(); i++) {
+		for (gps::Vertex vertex : object.meshes[i].vertices) {
+			if (vertex.Position.x < boundingBox.min.x) {
+				boundingBox.min.x = vertex.Position.x;
+			}
+			else if (vertex.Position.x > boundingBox.max.x) {
+				boundingBox.max.x = vertex.Position.x;
+			}
+
+			if (vertex.Position.y < boundingBox.min.y) {
+				boundingBox.min.y = vertex.Position.y;
+			}
+			else if (vertex.Position.y > boundingBox.max.y) {
+				boundingBox.max.y = vertex.Position.y;
+			}
+
+			if (vertex.Position.z < boundingBox.min.z) {
+				boundingBox.min.z = vertex.Position.z;
+			}
+			else if (vertex.Position.z > boundingBox.max.z) {
+				boundingBox.max.z = vertex.Position.z;
+			}
+		}
+	}
+	
+	return boundingBox;
+}
 
 bool initOpenGLWindow()
 {
@@ -318,6 +359,8 @@ void initShaders()
 	skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
 
 	sunShader.loadShader("shaders/sunShader.vert", "shaders/sunShader.frag");
+	
+	rainShader.loadShader("shaders/rainShader.vert", "shaders/rainShader.frag");
 }
 
 void initUniforms()
@@ -355,22 +398,36 @@ void initUniforms()
 
 	skyboxShader.useShaderProgram();
 	view = myCamera.getViewMatrix();
-	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "view"), 1, GL_FALSE,
-	glm::value_ptr(view));
+	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
 	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "projection"), 1, GL_FALSE,
 	glm::value_ptr(projection));
 }
 
-void drawRain() {
-	
+void initBoundingBoxes() {
+	myCamera.boundingBoxes[0] = createBoundingBox(bridge);
+	myCamera.boundingBoxes[1] = createBoundingBox(stoneWall);
+	myCamera.boundingBoxes[2] = createBoundingBox(house);
+	myCamera.boundingBoxes[3] = createBoundingBox(well);
+	myCamera.boundingBoxes[4] = createBoundingBox(rock);
+	myCamera.boundingBoxes[5] = createBoundingBox(tower);
+	myCamera.boundingBoxes[6] = createBoundingBox(wagon);
+	myCamera.boundingBoxes[7] = createBoundingBox(dog);
+	myCamera.boundingBoxes[8] = createBoundingBox(dragon);
+	myCamera.boundingBoxes[9] = createBoundingBox(road);
+	myCamera.boundingBoxes[10] = createBoundingBox(ground);
+
+	/*int objectCount = 11;
+	for (int tree = 1; tree < 8; tree++, objectCount++) {
+		myCamera.boundingBoxes[objectCount] = createBoundingBox(trees[tree]);
+	}*/
 }
 
 void renderScene()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+	
 	myCustomShader.useShaderProgram();
 	processMovement();
 
@@ -410,7 +467,6 @@ void renderScene()
 
 	//draw a white cube around the light
 	sunShader.useShaderProgram();
-
 	/*glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
 	model = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -421,7 +477,6 @@ void renderScene()
 	sun.Draw(sunShader);
 }
 
-
 int main(int argc, const char * argv[]) {
 
 	initOpenGLWindow();
@@ -429,7 +484,8 @@ int main(int argc, const char * argv[]) {
 	initModels();
 	initShaders();
 	initUniforms();	
-	
+	initBoundingBoxes();
+
 	while (!glfwWindowShouldClose(glWindow)) {
 		renderScene();
 

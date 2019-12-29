@@ -32,9 +32,12 @@ namespace gps {
 
 		void Draw(gps::Shader shaderProgram);
 
-    private:
+		// Reads the pixel data from an image file and loads it into the video memory
+		static GLuint ReadTextureFromFile(const char* file_name);
+
 		// Component meshes - group of objects
-        std::vector<gps::Mesh> meshes;
+		std::vector<gps::Mesh> meshes;
+    private:
 		// Associated textures
         std::vector<gps::Texture> loadedTextures;
 
@@ -43,9 +46,8 @@ namespace gps {
 
 		// Retrieves a texture associated with the object - by its name and type
 		gps::Texture LoadTexture(std::string path, std::string type);
-
-		// Reads the pixel data from an image file and loads it into the video memory
-		GLuint ReadTextureFromFile(const char* file_name);
+		
+		
     };
 }
 
