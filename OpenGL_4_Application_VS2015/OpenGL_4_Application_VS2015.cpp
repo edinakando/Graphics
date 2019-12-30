@@ -47,7 +47,7 @@ GLuint lightColorLoc;
 float lastX = 320, lastY = 320;  //mouse
 float yaw, pitch;
 
-gps::Camera myCamera(glm::vec3(0.0f, 2.0f, 4.0f), glm::vec3(0.0f, 0.0f, 4.0f));
+gps::Camera myCamera(glm::vec3(0.0f, 5.0f, 15.0f), glm::vec3(0.0f, 2.0f, -10.0f));
 float cameraSpeed = 0.05f;
 
 bool pressedKeys[1024];
@@ -82,6 +82,119 @@ std::vector<const GLchar*> faces;
 GLfloat lightAngle;
 
 gps::BoundingBox boundingBoxes[100];
+
+GLuint verticesVBO;
+GLuint verticesEBO;
+GLuint objectVAO;
+GLint texture;
+
+struct Particle {
+	glm::vec3 position;
+	glm::vec3 velocity;
+	GLfloat life;
+	GLfloat fadeSpeed;
+
+	Particle()
+		: position((float)((rand() % 100) - 60), 15.0, (float)((rand() % 100) - 60)), velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
+};
+
+GLuint NR_OF_PARTICLES = 2000;
+Particle particles[2000];
+
+void respawnParticle(Particle& particle)
+{
+	particle.position.x = (float)(rand() % 100) - 60;
+	particle.position.y = 15.0;
+	particle.position.z = (float)(rand() % 100) - 60;
+	particle.life = 10.0f;
+	particle.velocity = glm::vec3(1.5f);
+	particle.fadeSpeed = float(rand() % 100) / 1000.0f + 0.005f;
+}
+
+void UpdateParticleSystem(GLfloat timePassed, GLuint newParticles)
+{
+	for (GLuint i = 0; i < NR_OF_PARTICLES; i++)
+	{
+		Particle& p = particles[i];
+		p.life -= p.fadeSpeed;
+
+		if (p.life > 0.0f)
+		{
+			p.position -= p.velocity * timePassed;
+
+			//wind?
+			/*p.position.x -= timePassed;
+			p.position.y -= timePassed;
+			p.position.z += timePassed;*/
+		}
+	}
+}
+
+void DrawRain()
+{
+	rainShader.useShaderProgram();
+
+	GLint viewLoc = glGetUniformLocation(rainShader.shaderProgram, "view");
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
+	GLint projLoc = glGetUniformLocation(rainShader.shaderProgram, "projection");
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(rainShader.shaderProgram, "rainDropTexture"), 0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	GLuint offsetLoc = glGetUniformLocation(rainShader.shaderProgram, "offset");
+
+	for (int i = 0; i < NR_OF_PARTICLES; i++) {
+		Particle particle = particles[i];
+
+		if (particle.life > 0.0f)
+		{
+			glUniform3fv(offsetLoc, 1, glm::value_ptr(particle.position));
+			glBindVertexArray(objectVAO);
+			glDrawArrays(GL_LINES, 0, NR_OF_PARTICLES);
+			glBindVertexArray(0);
+		}
+		else respawnParticle(particles[i]);
+	}
+
+	UpdateParticleSystem(0.1f, 5);
+}
+
+void initParticles()
+{
+	for (GLuint i = 0; i < NR_OF_PARTICLES; ++i)
+		particles[i] = Particle();
+
+	GLfloat rainDropFormat[] = {
+		0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+		0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+
+		0.0f, 0.0f, -0.25f, 0.0f, 1.0f,
+		0.0f, 0.0f, -0.25f, 1.0f, 1.0f,
+		0.0f, 0.0f, -0.25f, 1.0f, 0.0f
+	};
+	
+	glGenVertexArrays(1, &objectVAO);
+	glBindVertexArray(objectVAO);
+
+	glGenBuffers(1, &verticesVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, verticesVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(rainDropFormat), rainDropFormat, GL_STATIC_DRAW);
+
+	//vertex position attribute
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0); //astea trebuie schimbate
+	glEnableVertexAttribArray(0);
+
+	//vertex texture
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+}
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -475,6 +588,8 @@ void renderScene()
 	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));*/
 
 	sun.Draw(sunShader);
+	
+	DrawRain();
 }
 
 int main(int argc, const char * argv[]) {
@@ -485,6 +600,10 @@ int main(int argc, const char * argv[]) {
 	initShaders();
 	initUniforms();	
 	initBoundingBoxes();
+
+	initParticles();
+
+	texture = gps::Model3D::ReadTextureFromFile("textures\\particle.jpg");
 
 	while (!glfwWindowShouldClose(glWindow)) {
 		renderScene();

@@ -1,13 +1,12 @@
 #version 400
+
+in vec3 colour;
+in vec2 passTexture; 
+
+out vec4 fragmentColour;
 uniform sampler2D rainDropTexture;
 
-in vec2 textureCoordinates;
-in vec3 colour;
-
-out vec4 fcolor;
-
-void main()
-{
-    fcolor = vec4(colour, 1.0);
-    fcolor = texture(rainDropTexture, textureCoordinates);
-}  
+void main() {
+    fragmentColour = vec4(colour, 1.0);
+    fragmentColour = texture(rainDropTexture, passTexture); 
+}

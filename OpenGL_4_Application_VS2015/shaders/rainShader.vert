@@ -1,16 +1,17 @@
 #version 400
+
 layout(location = 0) in vec3 vertexPosition;
-layout(location = 1) in vec2 texCoordinates;
-out vec2 textureCoordinates;
+layout(location = 1) in vec2 textCoord;
+
 out vec3 colour;
+out vec2 passTexture; 
 
+uniform mat4 view;
 uniform mat4 projection;
-uniform vec2 offset;
+uniform vec3 offset;
 
-void main()
-{
-    float scale = 10.0f;
-    textureCoordinates = texCoordinates;
+void main() {
     colour = vec3(0.0f, 0.0f, 1.0f);
-    gl_Position = projection * vec4((vertexPosition.xy * scale) + offset, 0.0, 1.0);
+    gl_Position = projection  * view * vec4(vertexPosition + offset, 1.0);
+    passTexture = textCoord;
 }
