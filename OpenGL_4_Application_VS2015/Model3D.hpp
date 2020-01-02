@@ -46,8 +46,6 @@ namespace gps {
 
 		// Retrieves a texture associated with the object - by its name and type
 		gps::Texture LoadTexture(std::string path, std::string type);
-		
-		
     };
 }
 

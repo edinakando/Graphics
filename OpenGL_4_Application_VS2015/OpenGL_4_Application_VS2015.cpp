@@ -88,6 +88,15 @@ GLuint verticesEBO;
 GLuint objectVAO;
 GLint texture;
 
+bool isRaining = false;
+
+GLfloat translateOnY = 0.0f;
+GLfloat advance = 0.0f;
+GLfloat dragonAngle = 0.0f;
+GLfloat speed = 0.5f;
+
+glm::mat4 modelDragon = glm::mat4(1.0f);
+
 struct Particle {
 	glm::vec3 position;
 	glm::vec3 velocity;
@@ -95,7 +104,7 @@ struct Particle {
 	GLfloat fadeSpeed;
 
 	Particle()
-		: position((float)((rand() % 100) - 60), 15.0, (float)((rand() % 100) - 60)), velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
+		: position((float)((rand() % 100) - 60), 25.0, (float)((rand() % 100) - 60)), velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
 };
 
 GLuint NR_OF_PARTICLES = 2000;
@@ -104,7 +113,7 @@ Particle particles[2000];
 void respawnParticle(Particle& particle)
 {
 	particle.position.x = (float)(rand() % 100) - 60;
-	particle.position.y = 15.0;
+	particle.position.y = 25.0;
 	particle.position.z = (float)(rand() % 100) - 60;
 	particle.life = 10.0f;
 	particle.velocity = glm::vec3(1.5f);
@@ -173,9 +182,9 @@ void initParticles()
 		0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
 
-		0.0f, 0.0f, -0.25f, 0.0f, 1.0f,
-		0.0f, 0.0f, -0.25f, 1.0f, 1.0f,
-		0.0f, 0.0f, -0.25f, 1.0f, 0.0f
+		-0.25f, 0.5f, 0.0f, 0.0f, 1.0f,
+		-0.25f, 0.5f, 0.0f, 1.0f, 1.0f,
+		-0.25f, 0.5f, 0.0f, 1.0f, 0.0f
 	};
 	
 	glGenVertexArrays(1, &objectVAO);
@@ -312,6 +321,30 @@ void processMovement()
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
+	if (pressedKeys[GLFW_KEY_R]) {
+		isRaining = !isRaining;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_UP)) {
+		advance -= speed;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_DOWN)) {
+		translateOnY -= speed;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_LEFT)) {
+		dragonAngle += 0.02;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_RIGHT)) {
+		dragonAngle -= 0.02;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_U)) {
+		translateOnY += speed;
+	}
+
 	//if (pressedKeys[GLFW_KEY_J]) {
 
 	//	lightAngle += 0.3f;
@@ -372,6 +405,22 @@ gps::BoundingBox createBoundingBox(gps::Model3D object) {
 	}
 	
 	return boundingBox;
+}
+
+void moveDragon() {
+	view = myCamera.getViewMatrix();
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+	modelDragon = glm::translate(modelDragon, glm::vec3(0, translateOnY, advance));
+	modelDragon = glm::rotate(modelDragon, dragonAngle, glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelDragon));
+
+	myCustomShader.useShaderProgram();
+	dragon.Draw(myCustomShader);
+
+	dragonAngle = 0;
+	translateOnY = 0;
+	advance = 0;
 }
 
 bool initOpenGLWindow()
@@ -573,7 +622,8 @@ void renderScene()
 	road.Draw(myCustomShader);
 	dog.Draw(myCustomShader);
 	water.Draw(myCustomShader);
-	dragon.Draw(myCustomShader);
+
+	moveDragon();
 
 	skyboxShader.useShaderProgram();
 	mySkyBox.Draw(skyboxShader, view, projection);
@@ -589,7 +639,9 @@ void renderScene()
 
 	sun.Draw(sunShader);
 	
-	DrawRain();
+	if (isRaining) {
+		DrawRain();
+	}
 }
 
 int main(int argc, const char * argv[]) {
