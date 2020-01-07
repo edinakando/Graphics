@@ -19,6 +19,11 @@ namespace gps {
         this->cameraRightDirection = glm::normalize(glm::cross(this->cameraDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
     }
     
+	glm::vec3 Camera::getCameraTarget()
+	{
+		return cameraTarget;
+	}
+
     glm::mat4 Camera::getViewMatrix()
     {
         return glm::lookAt(cameraPosition, cameraPosition + cameraDirection , glm::vec3(0.0f, 1.0f, 0.0f));

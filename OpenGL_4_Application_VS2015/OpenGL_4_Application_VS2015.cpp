@@ -25,12 +25,14 @@
 #include "Mesh.hpp"
 #include "SkyBox.hpp"
 
+const GLuint SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
+
 int glWindowWidth = 640;
 int glWindowHeight = 480;
 int retina_width, retina_height;
 GLFWwindow* glWindow = NULL;
 
-glm::mat4 model;
+glm::mat4 model = glm::mat4(1.0f);
 GLuint modelLoc;
 glm::mat4 view;
 GLuint viewLoc;
@@ -43,12 +45,14 @@ glm::vec3 lightDir;
 GLuint lightDirLoc;
 glm::vec3 lightColor;
 GLuint lightColorLoc;
+glm::mat3 lightDirMatrix;
+GLuint lightDirMatrixLoc;
 
 float lastX = 320, lastY = 320;  //mouse
 float yaw, pitch;
 
 gps::Camera myCamera(glm::vec3(0.0f, 5.0f, 15.0f), glm::vec3(0.0f, 2.0f, -10.0f));
-float cameraSpeed = 0.05f;
+float cameraSpeed = 0.2f;
 
 bool pressedKeys[1024];
 float angle = 0.0f;
@@ -67,16 +71,19 @@ gps::Model3D road;
 gps::Model3D dog;
 gps::Model3D water;
 gps::Model3D dragon;
-gps::Model3D sun;
+gps::Model3D lightCube;
 
 gps::Shader myCustomShader;
 
 gps::SkyBox mySkyBox;
 gps::Shader skyboxShader;
 
-gps::Shader sunShader;
 gps::Shader rainShader;
+gps::Shader lightShader;
+gps::Shader depthMapShader;
 
+GLuint shadowMapFBO;
+GLuint depthMapTexture;
 std::vector<const GLchar*> faces;
 
 GLfloat lightAngle;
@@ -143,12 +150,12 @@ void DrawRain()
 {
 	rainShader.useShaderProgram();
 
-	GLint viewLoc = glGetUniformLocation(rainShader.shaderProgram, "view");
+	GLuint viewLoc = glGetUniformLocation(rainShader.shaderProgram, "view");
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
 	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
-	GLint projLoc = glGetUniformLocation(rainShader.shaderProgram, "projection");
-	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+	GLuint projectionLoc = glGetUniformLocation(rainShader.shaderProgram, "projection");
+	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(glGetUniformLocation(rainShader.shaderProgram, "rainDropTexture"), 0);
@@ -178,13 +185,13 @@ void initParticles()
 		particles[i] = Particle();
 
 	GLfloat rainDropFormat[] = {
-		0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-		0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
 
-		-0.25f, 0.5f, 0.0f, 0.0f, 1.0f,
-		-0.25f, 0.5f, 0.0f, 1.0f, 1.0f,
-		-0.25f, 0.5f, 0.0f, 1.0f, 0.0f
+		-0.25f, 0.5f, 0.0f, 0.0f, 0.0f,
+		-0.25f, 0.5f, 0.0f, 0.0f, 0.0f,
+		-0.25f, 0.5f, 0.0f, 0.0f, 0.0f
 	};
 	
 	glGenVertexArrays(1, &objectVAO);
@@ -195,7 +202,7 @@ void initParticles()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(rainDropFormat), rainDropFormat, GL_STATIC_DRAW);
 
 	//vertex position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0); //astea trebuie schimbate
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
 
 	//vertex texture
@@ -240,8 +247,8 @@ void windowResizeCallback(GLFWwindow* window, int width, int height)
 	GLint projLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-	sunShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+	lightShader.useShaderProgram();
+	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 	//set Viewport transform
 	glViewport(0, 0, retina_width, retina_height);
@@ -345,36 +352,25 @@ void processMovement()
 		translateOnY += speed;
 	}
 
-	//if (pressedKeys[GLFW_KEY_J]) {
+	if (pressedKeys[GLFW_KEY_J]) {
 
-	//	lightAngle += 0.3f;
-	//	if (lightAngle > 360.0f)
-	//		lightAngle -= 360.0f;
-	//	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
-	//	myCustomShader.useShaderProgram();
-	//	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
-	//}
+		lightAngle += 0.3f;
+		if (lightAngle > 360.0f)
+			lightAngle -= 360.0f;
+		glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
+		myCustomShader.useShaderProgram();
+		glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
+	}
 
-	//if (pressedKeys[GLFW_KEY_L]) {
-	//	lightAngle -= 0.3f;
-	//	if (lightAngle < 0.0f)
-	//		lightAngle += 360.0f;
-	//	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
-	//	myCustomShader.useShaderProgram();
-	//	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
-	//}
+	if (pressedKeys[GLFW_KEY_L]) {
+		lightAngle -= 0.3f;
+		if (lightAngle < 0.0f)
+			lightAngle += 360.0f;
+		glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
+		myCustomShader.useShaderProgram();
+		glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDirTr));
+	}
 }
-
-//glm::mat4 computeLightSpaceTrMatrix()
-//{
-//	const GLfloat near_plane = 1.0f, far_plane = 10.0f;
-//	glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, near_plane, far_plane);
-//
-//	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
-//	glm::mat4 lightView = glm::lookAt(lightDirTr, myCamera.getCameraTarget(), glm::vec3(0.0f, 1.0f, 0.0f));
-//
-//	return lightProjection * lightView;
-//}
 
 gps::BoundingBox createBoundingBox(gps::Model3D object) {
 	gps::BoundingBox boundingBox;
@@ -436,6 +432,8 @@ bool initOpenGLWindow()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+
+	//scoate asta de aici...
 	faces.push_back("textures/skybox/lakes_rt.tga");
 	faces.push_back("textures/skybox/lakes_lf.tga");
 	faces.push_back("textures/skybox/lakes_up.tga");
@@ -479,7 +477,7 @@ void initOpenGLState()
 {
 	glClearColor(0.3, 0.3, 0.3, 1.0);
 	glViewport(0, 0, retina_width, retina_height);
-
+	glEnable(GL_FRAMEBUFFER_SRGB);
 	glEnable(GL_DEPTH_TEST); // enable depth-testing
 	glDepthFunc(GL_LESS); // depth-testing interprets a smaller value as "closer"
 	glEnable(GL_CULL_FACE); // cull face
@@ -487,8 +485,42 @@ void initOpenGLState()
 	glFrontFace(GL_CCW); // GL_CCW for counter clock-wise
 }
 
+void initFBOs()
+{
+	//generate FBO ID
+	glGenFramebuffers(1, &shadowMapFBO);
+
+	//create depth texture for FBO
+	glGenTextures(1, &depthMapTexture);
+	glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	//attach texture to FBO
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+glm::mat4 computeLightSpaceTrMatrix()
+{
+	const GLfloat near_plane = 1.0f, far_plane = 10.0f;
+	glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, near_plane, far_plane);
+
+	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
+	glm::mat4 lightView = glm::lookAt(myCamera.getCameraTarget() + 1.0f * lightDirTr, myCamera.getCameraTarget(), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	return lightProjection * lightView;
+}
+
 void initModels()
 {
+	lightCube = gps::Model3D("objects/cube/cube.obj", "objects/cube/");
 	ground = gps::Model3D("objects/ground/ground.obj", "objects/ground/");
 	bridge = gps::Model3D("objects/bridge/bridge.obj", "objects/bridge/");
 	stoneWall = gps::Model3D("objects/stone_wall/stone_wall.obj", "objects/stone_wall/");
@@ -509,7 +541,6 @@ void initModels()
 	dog = gps::Model3D("objects/dog/dog.obj", "objects/dog/");
 	water = gps::Model3D("objects/water/water.obj", "objects/water/");
 	dragon = gps::Model3D("objects/dragon/dragon.obj", "objects/dragon/");
-	sun = gps::Model3D("objects/sun/sun.obj", "objects/sun/");
 }
 
 void initShaders()
@@ -520,8 +551,9 @@ void initShaders()
 	mySkyBox.Load(faces);
 	skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
 
-	sunShader.loadShader("shaders/sunShader.vert", "shaders/sunShader.frag");
-	
+	lightShader.loadShader("shaders/lightCube.vert", "shaders/lightCube.frag");
+	depthMapShader.loadShader("shaders/simpleDepthMap.vert", "shaders/simpleDepthMap.frag");
+
 	rainShader.loadShader("shaders/rainShader.vert", "shaders/rainShader.frag");
 }
 
@@ -529,24 +561,21 @@ void initUniforms()
 {
 	myCustomShader.useShaderProgram();
 
-	model = glm::mat4(1.0f);
 	modelLoc = glGetUniformLocation(myCustomShader.shaderProgram, "model");
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-	view = myCamera.getViewMatrix();
 	viewLoc = glGetUniformLocation(myCustomShader.shaderProgram, "view");
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	
-	normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
 	normalMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "normalMatrix");
-	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 	
+	lightDirMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDirMatrix");
+
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
 	projectionLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
 	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
 	//set the light direction (direction towards the light)
-	lightDir = glm::vec3(0.0f, 1.0f, 1.0f);
+	lightDir = glm::vec3(0.0f, 3.0f, 2.0f);
+	//lightDir = glm::vec3(40.0f, 15.0f, 16.0f);
 	lightDirLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDir");
 	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
 
@@ -555,16 +584,15 @@ void initUniforms()
 	lightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor");
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
-	sunShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
+	lightShader.useShaderProgram();
+	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+	
 	skyboxShader.useShaderProgram();
 	view = myCamera.getViewMatrix();
 	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
-	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "projection"), 1, GL_FALSE,
-	glm::value_ptr(projection));
+	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 }
 
 void initBoundingBoxes() {
@@ -586,59 +614,98 @@ void initBoundingBoxes() {
 	}*/
 }
 
+void drawObjects(gps::Shader shader) {
+	bridge.Draw(shader);
+	stoneWall.Draw(shader);
+	house.Draw(shader);
+	flowers.Draw(shader);
+	well.Draw(shader);
+	trees[1].Draw(shader);
+	trees[2].Draw(shader);
+	trees[3].Draw(shader);
+	trees[4].Draw(shader);
+	trees[5].Draw(shader);
+	trees[6].Draw(shader);
+	trees[7].Draw(shader);
+	rock.Draw(shader);
+	tower.Draw(shader);
+	wagon.Draw(shader);
+	road.Draw(shader);
+	dog.Draw(shader);
+	water.Draw(shader);
+	ground.Draw(shader);
+}
+
 void renderScene()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
-	myCustomShader.useShaderProgram();
 	processMovement();
 
-	view = myCamera.getViewMatrix();
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+	/****************** render the scene to the depth buffer (first pass) ******************/
+	depthMapShader.useShaderProgram();
+	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
+					   glm::value_ptr(computeLightSpaceTrMatrix()));
+
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
 	model = glm::mat4(1.0f);
 	model = glm::rotate(model, glm::radians(angle), glm::vec3(0, 1, 0));
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-	normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+	drawObjects(depthMapShader);
 	
-	ground.Draw(myCustomShader);
-	bridge.Draw(myCustomShader);
-	stoneWall.Draw(myCustomShader);
-	house.Draw(myCustomShader);
-	flowers.Draw(myCustomShader);
-	well.Draw(myCustomShader);
-	trees[1].Draw(myCustomShader);
-	trees[2].Draw(myCustomShader);
-	trees[3].Draw(myCustomShader);
-	trees[4].Draw(myCustomShader);
-	trees[5].Draw(myCustomShader);
-	trees[6].Draw(myCustomShader);
-	trees[7].Draw(myCustomShader);
-	rock.Draw(myCustomShader);
-	tower.Draw(myCustomShader);
-	wagon.Draw(myCustomShader);
-	road.Draw(myCustomShader);
-	dog.Draw(myCustomShader);
-	water.Draw(myCustomShader);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	/**************************** render the scene (second pass) ****************************/
+	myCustomShader.useShaderProgram();
+	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE, 
+					   glm::value_ptr(computeLightSpaceTrMatrix()));
+
+	view = myCamera.getViewMatrix();
+	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+	lightDirMatrix = glm::mat3(glm::inverseTranspose(view));
+	glUniformMatrix3fv(lightDirMatrixLoc, 1, GL_FALSE, glm::value_ptr(lightDirMatrix));
+
+	glViewport(0, 0, retina_width, retina_height);
+
+	//bind the depth map
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+	glUniform1i(glGetUniformLocation(myCustomShader.shaderProgram, "shadowMap"), 3);
+
+	model = glm::rotate(model, glm::radians(angle), glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+	normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+	drawObjects(myCustomShader);
+
+	/************************** draw a white cube around the light **************************/
+	lightShader.useShaderProgram();
+
+	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+	model = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::translate(model, 1.0f * lightDir);
+	model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
+	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+	lightCube.Draw(lightShader);
+
+
+	/*************************************** animation ***************************************/
+	myCustomShader.useShaderProgram();
 	moveDragon();
 
+
+	/**************************************** skybox *****************************************/
 	skyboxShader.useShaderProgram();
 	mySkyBox.Draw(skyboxShader, view, projection);
 
-	//draw a white cube around the light
-	sunShader.useShaderProgram();
-	/*glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-
-	model = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
-	model = glm::translate(model, lightDir);
-	model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
-	glUniformMatrix4fv(glGetUniformLocation(sunShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));*/
-
-	sun.Draw(sunShader);
-	
+	/***************************************** rain ******************************************/
 	if (isRaining) {
 		DrawRain();
 	}
@@ -648,6 +715,7 @@ int main(int argc, const char * argv[]) {
 
 	initOpenGLWindow();
 	initOpenGLState();
+	initFBOs();
 	initModels();
 	initShaders();
 	initUniforms();	

@@ -27,6 +27,7 @@ namespace gps {
 	{
 	public:
 		Camera(glm::vec3 cameraPosition, glm::vec3 cameraTarget);
+		glm::vec3 getCameraTarget();
 		glm::mat4 getViewMatrix();
 		void move(MOVE_DIRECTION direction, float speed);
 		void rotate(float pitch, float yaw);
