@@ -45,9 +45,12 @@ glm::vec3 lightDir;
 GLuint lightDirLoc;
 glm::vec3 lightColor;
 GLuint lightColorLoc;
+glm::vec3 pointLightColor;
+GLuint pointLightColorLoc;
 glm::mat3 lightDirMatrix;
 GLuint lightDirMatrixLoc;
 GLuint isFogLoc;
+GLuint isNightLoc;
 
 float lastX = glWindowWidth / 2;
 float lastY = glWindowHeight / 2;  //mouse
@@ -80,6 +83,8 @@ gps::Model3D lightCube;
 gps::Model3D spinnerHead;
 gps::Model3D spinnerWings;
 gps::Model3D spinnerTail;
+gps::Model3D lamp1;
+gps::Model3D lamp2;
 
 gps::Shader myCustomShader;
 
@@ -108,6 +113,9 @@ GLfloat dragonAngle = 0.0f;
 GLfloat speed = 0.5f;
 
 glm::mat4 modelDragon = glm::mat4(1.0f);
+
+bool isNightMode = false;
+bool isDayPassed = true;
 
 struct Particle {
 	glm::vec3 position;
@@ -433,24 +441,30 @@ void processMovement()
 	if (glfwGetKey(glWindow, GLFW_KEY_M)) {
 		myCamera.setCameraPosition(glm::vec3(33.124573, 7.655275, 14.748343), glm::vec3(0.000000, 2.000000, -10.000000), glm::vec3(-0.697068, -0.226651, -0.680239));
 		isCameraTour = true;
-		/*if (isCameraTour)
-			isCameraTour = false;
-		else isCameraTour = true;*/
 	}
 
-	if (glfwGetKey(glWindow, GLFW_KEY_N)) {
+	if (glfwGetKey(glWindow, GLFW_KEY_V)) {
+		isAnimation = true;
+		spinnerAngle = 0.1;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_B)) {
 			isAnimation = false;
 			spinnerAngle = 0.0;
 			modelSpinner = glm::mat4(1.0f);
 	}
 
-	if (glfwGetKey(glWindow, GLFW_KEY_B)) {
-		isAnimation = true;
-		spinnerAngle = 0.1;
+	if (glfwGetKey(glWindow, GLFW_KEY_N)) {
+		isNightMode = true;
+		isDayPassed = true;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_Z)) {
+		isNightMode = false;
+		isDayPassed = true;
 	}
 
 	if (pressedKeys[GLFW_KEY_J]) {
-
 		lightAngle += 0.3f;
 		if (lightAngle > 360.0f)
 			lightAngle -= 360.0f;
@@ -529,15 +543,6 @@ bool initOpenGLWindow()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-
-	//scoate asta de aici...
-	faces.push_back("textures/skybox/lakes_rt.tga");
-	faces.push_back("textures/skybox/lakes_lf.tga");
-	faces.push_back("textures/skybox/lakes_up.tga");
-	faces.push_back("textures/skybox/lakes_dn.tga");
-	faces.push_back("textures/skybox/lakes_bk.tga");
-	faces.push_back("textures/skybox/lakes_ft.tga");
-
 	glWindow = glfwCreateWindow(glWindowWidth, glWindowHeight, "OpenGL Shader Example", NULL, NULL);
 	if (!glWindow) {
 		fprintf(stderr, "ERROR: could not open window with GLFW3\n");
@@ -606,8 +611,8 @@ void initFBOs()
 
 glm::mat4 computeLightSpaceTrMatrix()
 {
-	const GLfloat near_plane = 1.0f, far_plane = 10.0f;
-	glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, near_plane, far_plane);
+	const GLfloat near_plane = -40.0f, far_plane = 50.0f;
+	glm::mat4 lightProjection = glm::ortho(-50.0f, 50.0f, -50.0f, 50.0f, near_plane, far_plane);
 
 	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
 	glm::mat4 lightView = glm::lookAt(myCamera.getCameraTarget() + 1.0f * lightDirTr, myCamera.getCameraTarget(), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -642,15 +647,40 @@ void initModels()
 	spinnerHead = gps::Model3D("objects/spinner/spinnerHead.obj", "objects/spinner/");
 	spinnerWings = gps::Model3D("objects/spinner/spinnerWings.obj", "objects/spinner/");
 	spinnerTail = gps::Model3D("objects/spinner/spinnerTail.obj", "objects/spinner/");
+	lamp1 = gps::Model3D("objects/lampost/lamp_post1.obj", "objects/lampost/");
+	lamp2 = gps::Model3D("objects/lampost/lamp_post2.obj", "objects/lampost/");
+}
+
+void initSkybox() {
+	if (isDayPassed) {
+		faces.clear();
+		if (isNightMode) {
+			faces.push_back("textures/night_skybox/starfield_rt.tga");
+			faces.push_back("textures/night_skybox/starfield_lf.tga");
+			faces.push_back("textures/night_skybox/starfield_up.tga");
+			faces.push_back("textures/night_skybox/starfield_dn.tga");
+			faces.push_back("textures/night_skybox/starfield_bk.tga");
+			faces.push_back("textures/night_skybox/starfield_ft.tga");
+		}
+		else {
+			faces.push_back("textures/skybox/lakes_rt.tga");
+			faces.push_back("textures/skybox/lakes_lf.tga");
+			faces.push_back("textures/skybox/lakes_up.tga");
+			faces.push_back("textures/skybox/lakes_dn.tga");
+			faces.push_back("textures/skybox/lakes_bk.tga");
+			faces.push_back("textures/skybox/lakes_ft.tga");
+		}
+
+		isDayPassed = false;
+		mySkyBox.Load(faces);
+		skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
+	}
 }
 
 void initShaders()
 {
 	myCustomShader.loadShader("shaders/shaderStart.vert", "shaders/shaderStart.frag");
 	myCustomShader.useShaderProgram();
-
-	mySkyBox.Load(faces);
-	skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
 
 	lightShader.loadShader("shaders/lightCube.vert", "shaders/lightCube.frag");
 	depthMapShader.loadShader("shaders/simpleDepthMap.vert", "shaders/simpleDepthMap.frag");
@@ -673,20 +703,34 @@ void initUniforms()
 	isFogLoc = glGetUniformLocation(myCustomShader.shaderProgram, "isFog");
 	glUniform1i(isFogLoc, isFog);
 
+	isNightLoc = glGetUniformLocation(myCustomShader.shaderProgram, "isNight");
+	glUniform1i(isNightLoc, isNightMode);
+
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
 	projectionLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
 	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-	//set the light direction (direction towards the light)
-	lightDir = glm::vec3(0.0f, 3.0f, 2.0f);
-	//lightDir = glm::vec3(40.0f, 15.0f, 16.0f);
+	lightDir = glm::vec3(-2.0f, 3.0f, 0.0f);
 	lightDirLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDir");
 	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
 
 	//set light color
-	lightColor = glm::vec3(1.0f, 1.0f, 1.0f); //white light
+	if(isNightMode)
+		lightColor = glm::vec3(0.0f, 0.0f, 0.0f); 
+	else
+		lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 	lightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor");
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+
+	pointLightColor = glm::vec3(1.0f, 1.0f, 0.0f);
+	pointLightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "pointLightColor");
+	glUniform3fv(pointLightColorLoc, 1, glm::value_ptr(pointLightColor));
+
+	glm::vec3 pointLightPosition1 = glm::vec3(-3, 4, 3);
+	glUniform3fv(glGetUniformLocation(myCustomShader.shaderProgram, "pointLightPosition1"), 1, glm::value_ptr(pointLightPosition1));
+
+	glm::vec3 pointLightPosition2 = glm::vec3(-6, 4, 3);
+	glUniform3fv(glGetUniformLocation(myCustomShader.shaderProgram, "pointLightPosition2"), 1, glm::value_ptr(pointLightPosition2));
 
 	lightShader.useShaderProgram();
 	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -757,6 +801,8 @@ void drawObjects(gps::Shader shader) {
 	ground.Draw(shader);
 	spinnerHead.Draw(shader);
 	spinnerTail.Draw(shader);
+	lamp1.Draw(shader);
+	lamp2.Draw(shader);
 }
 
 void renderScene()
@@ -771,26 +817,28 @@ void renderScene()
 		cameraTour();
 
 	glUniform1i(isFogLoc, isFog);
-
+	glUniform1i(isNightLoc, isNightMode);
 
 	/****************** render the scene to the depth buffer (first pass) ******************/
+	//glCullFace(GL_FRONT);
 	depthMapShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
-		glm::value_ptr(computeLightSpaceTrMatrix()));
-
+	
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	model = glm::mat4(1.0f);
-	model = glm::rotate(model, glm::radians(angle), glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
+		glm::value_ptr(computeLightSpaceTrMatrix()));
+
+	model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
 	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
 	drawObjects(depthMapShader);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+	//glCullFace(GL_BACK);
 	/**************************** render the scene (second pass) ****************************/
 	myCustomShader.useShaderProgram();
+
 	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
 		glm::value_ptr(computeLightSpaceTrMatrix()));
 
@@ -800,14 +848,13 @@ void renderScene()
 	lightDirMatrix = glm::mat3(glm::inverseTranspose(view));
 	glUniformMatrix3fv(lightDirMatrixLoc, 1, GL_FALSE, glm::value_ptr(lightDirMatrix));
 
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, retina_width, retina_height);
-
-	//bind the depth map
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, depthMapTexture);
 	glUniform1i(glGetUniformLocation(myCustomShader.shaderProgram, "shadowMap"), 3);
 
-	model = glm::rotate(model, glm::radians(angle), glm::vec3(0, 1, 0));
+	model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
 	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
 	normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
@@ -826,7 +873,6 @@ void renderScene()
 
 	lightCube.Draw(lightShader);
 
-
 	/*************************************** animation ***************************************/
 	myCustomShader.useShaderProgram();
 	moveDragon();
@@ -834,6 +880,7 @@ void renderScene()
 
 	/**************************************** skybox *****************************************/
 	skyboxShader.useShaderProgram();
+	initSkybox();
 	mySkyBox.Draw(skyboxShader, view, projection);
 
 	/***************************************** rain ******************************************/
@@ -847,6 +894,7 @@ int main(int argc, const char * argv[]) {
 	initOpenGLWindow();
 	initOpenGLState();
 	initFBOs();
+	initSkybox();
 	initModels();
 	initShaders();
 	initUniforms();	

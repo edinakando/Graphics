@@ -8,6 +8,7 @@ out vec3 normal;
 out vec4 fragPosEye;
 out vec4 fragPosLightSpace;
 out vec2 fragTexCoords;
+out mat4 fView;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -21,5 +22,6 @@ void main()
 	normal = vNormal;
 	fragTexCoords = vTexCoords;
 	fragPosLightSpace = lightSpaceTrMatrix * model * vec4(vPosition, 1.0f);
+	fView = view;
 	gl_Position = projection * view * model * vec4(vPosition, 1.0f);
 }
