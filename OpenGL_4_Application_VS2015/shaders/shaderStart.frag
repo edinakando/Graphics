@@ -15,6 +15,7 @@ uniform mat3 lightDirMatrix;
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D shadowMap;
+uniform int isFog;
 
 vec3 ambient;
 float ambientStrength = 0.2f;
@@ -104,22 +105,6 @@ void main()
 	float fogFactor = computeFog();
 	vec4 fogColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
 
-	//vec3 baseColor = vec3(1.0f, 0.55f, 0.0f);//orange
-	
-	//ambient = att * ambientStrength * lightColor;
-	//diffuse = att * max(dot(normalEye, lightDirN), 0.0f) * lightColor;
-	//specular = att * specularStrength * specCoeff * lightColor;
-	
-	//ambient *= texture(diffuseTexture, fragTexCoords);
-	//diffuse *= texture(diffuseTexture, fragTexCoords);
-	//specular *= texture(specularTexture, fragTexCoords);
-
-	//vec3 color = min((ambient + diffuse) + specular, 1.0f);
-    
-    	//fColor = vec4(color, 1.0f);
-	//fColor = fogColor * (1 - fogColor) + color * fogFactor;
-
-
 	float shadow = computeShadow();
 	
 	//modulate with diffuse map
@@ -131,5 +116,12 @@ void main()
 	//modulate with shadow
 	vec3 color = min((ambient + (1.0f - shadow)*diffuse) + (1.0f - shadow)*specular, 1.0f);
     
-    	fColor = vec4(color, 1.0f);
+    	
+	if(isFog == 1){
+		fColor = fogColor * (1 - fogColor) + color * fogFactor;
+	}
+        else {
+		fColor = vec4(color, 1.0f);
+	}
+
 }

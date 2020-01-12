@@ -9,7 +9,7 @@
 #include "Camera.hpp"
 
 namespace gps {
-    
+	//FILE* file = fopen("C:/Users/edina/42/GPS/proiect/OpenGL/startPos.txt", "w+");
 
     Camera::Camera(glm::vec3 cameraPosition, glm::vec3 cameraTarget)
     {
@@ -28,6 +28,14 @@ namespace gps {
     {
         return glm::lookAt(cameraPosition, cameraPosition + cameraDirection , glm::vec3(0.0f, 1.0f, 0.0f));
     }
+
+	void Camera::setCameraPosition(glm::vec3 cameraPosition, glm::vec3 cameraTarget, glm::vec3 cameraDirection)
+	{
+		this->cameraPosition = cameraPosition;
+		this->cameraTarget = cameraTarget;
+		this->cameraDirection = cameraDirection;
+		this->cameraRightDirection = glm::normalize(glm::cross(this->cameraDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
+	}
 
 	float Camera::isCameraInsideBoundingBox(MOVE_DIRECTION direction, float speed)
 	{
@@ -59,8 +67,11 @@ namespace gps {
 
     void Camera::move(MOVE_DIRECTION direction, float speed)
     {
-		if (!isCameraInsideBoundingBox(direction, speed))
+		if (!isCameraInsideBoundingBox(direction, speed)) {
 			cameraPosition = getCameraNewPosition(direction, speed);
+			//fprintf(file, "%s %f, %f, %f\n", "position", cameraPosition.x, cameraPosition.y, cameraPosition.z);
+			//fprintf(file, "%s %f, %f, %f\n", "target", cameraTarget.x, cameraTarget.y, cameraTarget.z);
+		}
     }
     
 	/*
@@ -69,12 +80,11 @@ namespace gps {
 	*/
     void Camera::rotate(float pitch, float yaw)  
     {
-		cameraDirection.y = sin(glm::radians(pitch));
-		cameraDirection.x = cos(glm::radians(pitch));
-		cameraDirection.z = cos(glm::radians(pitch));
-
 		cameraDirection.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
 		cameraDirection.y = sin(glm::radians(pitch));
 		cameraDirection.z = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
+
+		cameraRightDirection = glm::normalize(glm::cross(this->cameraDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
+		//fprintf(file, "%s %f, %f, %f\n", "direction", cameraDirection.x, cameraDirection.y, cameraDirection.z);
     }
 }

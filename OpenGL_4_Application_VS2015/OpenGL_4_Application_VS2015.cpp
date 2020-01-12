@@ -27,8 +27,8 @@
 
 const GLuint SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
 
-int glWindowWidth = 640;
-int glWindowHeight = 480;
+int glWindowWidth = 1024;
+int glWindowHeight = 820;
 int retina_width, retina_height;
 GLFWwindow* glWindow = NULL;
 
@@ -47,15 +47,20 @@ glm::vec3 lightColor;
 GLuint lightColorLoc;
 glm::mat3 lightDirMatrix;
 GLuint lightDirMatrixLoc;
+GLuint isFogLoc;
 
-float lastX = 320, lastY = 320;  //mouse
+float lastX = glWindowWidth / 2;
+float lastY = glWindowHeight / 2;  //mouse
 float yaw, pitch;
 
 gps::Camera myCamera(glm::vec3(0.0f, 5.0f, 15.0f), glm::vec3(0.0f, 2.0f, -10.0f));
-float cameraSpeed = 0.2f;
+float cameraSpeed = 0.3f;
 
 bool pressedKeys[1024];
 float angle = 0.0f;
+
+bool isRaining = false;
+GLuint isFog = 0;
 
 gps::Model3D ground;
 gps::Model3D bridge;
@@ -63,7 +68,7 @@ gps::Model3D stoneWall;
 gps::Model3D house;
 gps::Model3D flowers;
 gps::Model3D well;
-gps::Model3D trees[8];
+gps::Model3D trees[10];
 gps::Model3D rock;
 gps::Model3D tower;
 gps::Model3D wagon;
@@ -72,6 +77,9 @@ gps::Model3D dog;
 gps::Model3D water;
 gps::Model3D dragon;
 gps::Model3D lightCube;
+gps::Model3D spinnerHead;
+gps::Model3D spinnerWings;
+gps::Model3D spinnerTail;
 
 gps::Shader myCustomShader;
 
@@ -94,9 +102,6 @@ GLuint verticesVBO;
 GLuint verticesEBO;
 GLuint objectVAO;
 GLint texture;
-
-bool isRaining = false;
-
 GLfloat translateOnY = 0.0f;
 GLfloat advance = 0.0f;
 GLfloat dragonAngle = 0.0f;
@@ -111,11 +116,30 @@ struct Particle {
 	GLfloat fadeSpeed;
 
 	Particle()
-		: position((float)((rand() % 100) - 60), 25.0, (float)((rand() % 100) - 60)), velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
+		: position((float)((rand() % 100) - 60), 25.0, (float)((rand() % 100) - 60)), 
+		  velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), 
+		  fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
 };
 
 GLuint NR_OF_PARTICLES = 2000;
 Particle particles[2000];
+
+struct VirtualTour {
+	char action[10];
+	float parameter1;
+	float parameter2;
+};
+
+VirtualTour virtualTour[10000];
+int currentTourStep = 0;
+int actionCount = 0;
+//FILE* file = fopen("C:/Users/edina/42/GPS/proiect/OpenGL/tour.txt", "w");
+FILE* file = fopen("C:/Users/edina/42/GPS/proiect/OpenGL/virtualTour.txt", "r");
+bool isCameraTour = false;
+
+float spinnerAngle = 0.0f;
+bool isAnimation = false;
+glm::mat4 modelSpinner = glm::mat4(1.0f);
 
 void respawnParticle(Particle& particle)
 {
@@ -127,7 +151,7 @@ void respawnParticle(Particle& particle)
 	particle.fadeSpeed = float(rand() % 100) / 1000.0f + 0.005f;
 }
 
-void UpdateParticleSystem(GLfloat timePassed, GLuint newParticles)
+void updateParticleSystem(GLfloat timePassed, GLuint newParticles)
 {
 	for (GLuint i = 0; i < NR_OF_PARTICLES; i++)
 	{
@@ -146,7 +170,7 @@ void UpdateParticleSystem(GLfloat timePassed, GLuint newParticles)
 	}
 }
 
-void DrawRain()
+void drawRain()
 {
 	rainShader.useShaderProgram();
 
@@ -176,7 +200,7 @@ void DrawRain()
 		else respawnParticle(particles[i]);
 	}
 
-	UpdateParticleSystem(0.1f, 5);
+	updateParticleSystem(0.1f, 5);
 }
 
 void initParticles()
@@ -275,7 +299,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 	lastX = xpos;
 	lastY = ypos;
 
-	float sensitivity = 0.05f;
+	float sensitivity = 0.1f;
 	xoffset *= sensitivity;
 	yoffset *= sensitivity;
 
@@ -287,8 +311,40 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 	if (pitch < -89.0f)
 		pitch = -89.0f;
 
+	if (isCameraTour)
+		fprintf(file, "%s %f %f\n", "rotate", pitch, yaw);
 	myCamera.rotate(pitch, yaw);
 }
+
+
+void initCameraTour() {
+	while (fscanf(file, "%s %f %f", &virtualTour[actionCount].action, &virtualTour[actionCount].parameter1, &virtualTour[actionCount].parameter2) != EOF) {
+		actionCount++;
+	}
+}
+
+void cameraTour() {
+	//printf("%s %f %f\n", virtualTour[currentTourStep].action, virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
+
+	if (strcmp(virtualTour[currentTourStep].action, "move") == 0) {
+		printf("%s %d %f\n", virtualTour[currentTourStep].action, (gps::MOVE_DIRECTION)(int)virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
+
+		myCamera.move((gps::MOVE_DIRECTION)(int)virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
+	}
+	else if (strcmp(virtualTour[currentTourStep].action, "rotate") == 0) {
+		printf("%s %f %f\n", virtualTour[currentTourStep].action, virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
+		myCamera.rotate(virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
+		//myCamera.rotate(verticalAngle, horizontalAngle);
+	}
+
+	if (currentTourStep < actionCount)
+		currentTourStep++;
+	else {
+		currentTourStep = 0;
+		isCameraTour = false;
+	}
+}
+
 
 void processMovement()
 {
@@ -305,22 +361,38 @@ void processMovement()
 	}
 
 	if (pressedKeys[GLFW_KEY_W]) {
+		if (isCameraTour)
+			fprintf(file, "%s %f %f\n", "move", (float) gps::MOVE_FORWARD, cameraSpeed);
 		myCamera.move(gps::MOVE_FORWARD, cameraSpeed);
 	}
 
 	if (pressedKeys[GLFW_KEY_S]) {
+		if (isCameraTour)
+			fprintf(file, "%s %f %f\n", "move", (float)gps::MOVE_BACKWARD, cameraSpeed);
 		myCamera.move(gps::MOVE_BACKWARD, cameraSpeed);
 	}
 
 	if (pressedKeys[GLFW_KEY_A]) {
+		if (isCameraTour)
+			fprintf(file, "%s %f %f\n", "move", (float)gps::MOVE_LEFT, cameraSpeed);
 		myCamera.move(gps::MOVE_LEFT, cameraSpeed);
 	}
 
 	if (pressedKeys[GLFW_KEY_D]) {
+		if (isCameraTour)
+			fprintf(file, "%s %f %f\n", "move", (float)gps::MOVE_RIGHT, cameraSpeed);
 		myCamera.move(gps::MOVE_RIGHT, cameraSpeed);
 	}
 
-	if (pressedKeys[GLFW_KEY_P]) {
+	if (glfwGetKey(glWindow, GLFW_KEY_F)) {
+		isFog = 1;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_G)) {
+		isFog = 0;
+	}
+
+	if (pressedKeys[GLFW_KEY_I]) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 
@@ -328,8 +400,14 @@ void processMovement()
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
+	if (pressedKeys[GLFW_KEY_P]) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+	}
+
 	if (pressedKeys[GLFW_KEY_R]) {
-		isRaining = !isRaining;
+		if (isRaining)
+			isRaining = false;
+		else isRaining = true;
 	}
 
 	if (glfwGetKey(glWindow, GLFW_KEY_UP)) {
@@ -350,6 +428,25 @@ void processMovement()
 
 	if (glfwGetKey(glWindow, GLFW_KEY_U)) {
 		translateOnY += speed;
+	}
+	
+	if (glfwGetKey(glWindow, GLFW_KEY_M)) {
+		myCamera.setCameraPosition(glm::vec3(33.124573, 7.655275, 14.748343), glm::vec3(0.000000, 2.000000, -10.000000), glm::vec3(-0.697068, -0.226651, -0.680239));
+		isCameraTour = true;
+		/*if (isCameraTour)
+			isCameraTour = false;
+		else isCameraTour = true;*/
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_N)) {
+			isAnimation = false;
+			spinnerAngle = 0.0;
+			modelSpinner = glm::mat4(1.0f);
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_B)) {
+		isAnimation = true;
+		spinnerAngle = 0.1;
 	}
 
 	if (pressedKeys[GLFW_KEY_J]) {
@@ -534,6 +631,7 @@ void initModels()
 	trees[5] = gps::Model3D("objects/trees/tree5.obj", "objects/trees/");
 	trees[6] = gps::Model3D("objects/trees/tree6.obj", "objects/trees/");
 	trees[7] = gps::Model3D("objects/trees/tree7.obj", "objects/trees/");
+	trees[8] = gps::Model3D("objects/trees/tree8.obj", "objects/trees/");
 	rock = gps::Model3D("objects/rock/rock.obj", "objects/rock/");
 	tower = gps::Model3D("objects/tower/tower.obj", "objects/tower/");
 	wagon = gps::Model3D("objects/wagon/wagon.obj", "objects/wagon/");
@@ -541,6 +639,9 @@ void initModels()
 	dog = gps::Model3D("objects/dog/dog.obj", "objects/dog/");
 	water = gps::Model3D("objects/water/water.obj", "objects/water/");
 	dragon = gps::Model3D("objects/dragon/dragon.obj", "objects/dragon/");
+	spinnerHead = gps::Model3D("objects/spinner/spinnerHead.obj", "objects/spinner/");
+	spinnerWings = gps::Model3D("objects/spinner/spinnerWings.obj", "objects/spinner/");
+	spinnerTail = gps::Model3D("objects/spinner/spinnerTail.obj", "objects/spinner/");
 }
 
 void initShaders()
@@ -568,6 +669,9 @@ void initUniforms()
 	normalMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "normalMatrix");
 	
 	lightDirMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDirMatrix");
+
+	isFogLoc = glGetUniformLocation(myCustomShader.shaderProgram, "isFog");
+	glUniform1i(isFogLoc, isFog);
 
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
 	projectionLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
@@ -607,11 +711,27 @@ void initBoundingBoxes() {
 	myCamera.boundingBoxes[8] = createBoundingBox(dragon);
 	myCamera.boundingBoxes[9] = createBoundingBox(road);
 	myCamera.boundingBoxes[10] = createBoundingBox(ground);
-
+	
 	/*int objectCount = 11;
 	for (int tree = 1; tree < 8; tree++, objectCount++) {
 		myCamera.boundingBoxes[objectCount] = createBoundingBox(trees[tree]);
 	}*/
+}
+
+
+void drawAnimation() {
+	myCustomShader.useShaderProgram();
+
+	view = myCamera.getViewMatrix();
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+	modelSpinner = glm::translate(modelSpinner, glm::vec3(-7.49426, 7.63297, -9.22455));
+	modelSpinner = glm::rotate(modelSpinner, spinnerAngle, glm::vec3(0, 0, 1));
+	modelSpinner = glm::translate(modelSpinner, glm::vec3(7.49426, -7.63297, 9.22455));
+
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelSpinner));
+	
+	spinnerWings.Draw(myCustomShader);
 }
 
 void drawObjects(gps::Shader shader) {
@@ -627,6 +747,7 @@ void drawObjects(gps::Shader shader) {
 	trees[5].Draw(shader);
 	trees[6].Draw(shader);
 	trees[7].Draw(shader);
+	trees[8].Draw(shader);
 	rock.Draw(shader);
 	tower.Draw(shader);
 	wagon.Draw(shader);
@@ -634,18 +755,28 @@ void drawObjects(gps::Shader shader) {
 	dog.Draw(shader);
 	water.Draw(shader);
 	ground.Draw(shader);
+	spinnerHead.Draw(shader);
+	spinnerTail.Draw(shader);
 }
 
 void renderScene()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	
+
 	processMovement();
+
+	myCustomShader.useShaderProgram();
+
+	if (isCameraTour)
+		cameraTour();
+
+	glUniform1i(isFogLoc, isFog);
+
 
 	/****************** render the scene to the depth buffer (first pass) ******************/
 	depthMapShader.useShaderProgram();
 	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
-					   glm::value_ptr(computeLightSpaceTrMatrix()));
+		glm::value_ptr(computeLightSpaceTrMatrix()));
 
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
@@ -655,13 +786,13 @@ void renderScene()
 	model = glm::rotate(model, glm::radians(angle), glm::vec3(0, 1, 0));
 	glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
 	drawObjects(depthMapShader);
-	
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	/**************************** render the scene (second pass) ****************************/
 	myCustomShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE, 
-					   glm::value_ptr(computeLightSpaceTrMatrix()));
+	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
+		glm::value_ptr(computeLightSpaceTrMatrix()));
 
 	view = myCamera.getViewMatrix();
 	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -699,7 +830,7 @@ void renderScene()
 	/*************************************** animation ***************************************/
 	myCustomShader.useShaderProgram();
 	moveDragon();
-
+	drawAnimation();
 
 	/**************************************** skybox *****************************************/
 	skyboxShader.useShaderProgram();
@@ -707,7 +838,7 @@ void renderScene()
 
 	/***************************************** rain ******************************************/
 	if (isRaining) {
-		DrawRain();
+		drawRain();
 	}
 }
 
@@ -720,8 +851,8 @@ int main(int argc, const char * argv[]) {
 	initShaders();
 	initUniforms();	
 	initBoundingBoxes();
-
 	initParticles();
+	initCameraTour();
 
 	texture = gps::Model3D::ReadTextureFromFile("textures\\particle.jpg");
 

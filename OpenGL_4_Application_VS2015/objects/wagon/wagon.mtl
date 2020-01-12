@@ -1,8 +1,8 @@
 # Blender MTL File: 'scene.blend'
 # Material Count: 2
 
-newmtl lambert5SG
-Ns 96.078431
+newmtl lambert5SG.002
+Ns 94.117647
 Ka 0.000000 0.000000 0.000000
 Kd 0.000000 0.000000 0.000000
 Ks 0.500000 0.500000 0.500000
@@ -13,8 +13,8 @@ illum 6
 map_Kd wildtextures-old-wood-original-file.jpg
 map_Bump 0.128205
 
-newmtl pPipe3SG1
-Ns 96.078431
+newmtl pPipe3SG1.002
+Ns 94.117647
 Ka 0.000000 0.000000 0.000000
 Kd 0.000000 0.000000 0.000000
 Ks 0.500000 0.500000 0.500000
