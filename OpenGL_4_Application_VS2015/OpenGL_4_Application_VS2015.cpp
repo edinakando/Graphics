@@ -85,6 +85,8 @@ gps::Model3D spinnerWings;
 gps::Model3D spinnerTail;
 gps::Model3D lamp1;
 gps::Model3D lamp2;
+gps::Model3D foodStall;
+gps::Model3D board;
 
 gps::Shader myCustomShader;
 
@@ -124,7 +126,7 @@ struct Particle {
 	GLfloat fadeSpeed;
 
 	Particle()
-		: position((float)((rand() % 100) - 60), 25.0, (float)((rand() % 100) - 60)), 
+		: position((float)((rand() % 100) - 60), (float)(20 + (rand() % 20)), (float)((rand() % 100) - 60)), 
 		  velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), 
 		  fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
 };
@@ -649,6 +651,8 @@ void initModels()
 	spinnerTail = gps::Model3D("objects/spinner/spinnerTail.obj", "objects/spinner/");
 	lamp1 = gps::Model3D("objects/lampost/lamp_post1.obj", "objects/lampost/");
 	lamp2 = gps::Model3D("objects/lampost/lamp_post2.obj", "objects/lampost/");
+	foodStall = gps::Model3D("objects/food_stall/food_stall.obj", "objects/food_stall/");
+	board = gps::Model3D("objects/board/board.obj", "objects/board/");
 }
 
 void initSkybox() {
@@ -797,12 +801,14 @@ void drawObjects(gps::Shader shader) {
 	wagon.Draw(shader);
 	road.Draw(shader);
 	dog.Draw(shader);
-	water.Draw(shader);
 	ground.Draw(shader);
+	water.Draw(shader);
 	spinnerHead.Draw(shader);
 	spinnerTail.Draw(shader);
 	lamp1.Draw(shader);
 	lamp2.Draw(shader);
+	foodStall.Draw(shader);
+	board.Draw(shader);
 }
 
 void renderScene()
