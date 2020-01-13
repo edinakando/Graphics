@@ -123,7 +123,7 @@ float computeShadow()
 
 float computeFog()
 {
- 	float fogDensity = 0.1f;
+ 	float fogDensity = 0.03f;
 	float fragmentDistance = length(fragPosEye);
 	float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2));
 

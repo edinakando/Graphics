@@ -50,6 +50,7 @@ GLuint pointLightColorLoc;
 glm::mat3 lightDirMatrix;
 GLuint lightDirMatrixLoc;
 GLuint isFogLoc;
+GLuint isFogLocSkybox;
 GLuint isNightLoc;
 
 float lastX = glWindowWidth / 2;
@@ -337,14 +338,10 @@ void cameraTour() {
 	//printf("%s %f %f\n", virtualTour[currentTourStep].action, virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
 
 	if (strcmp(virtualTour[currentTourStep].action, "move") == 0) {
-		printf("%s %d %f\n", virtualTour[currentTourStep].action, (gps::MOVE_DIRECTION)(int)virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
-
 		myCamera.move((gps::MOVE_DIRECTION)(int)virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
 	}
 	else if (strcmp(virtualTour[currentTourStep].action, "rotate") == 0) {
-		printf("%s %f %f\n", virtualTour[currentTourStep].action, virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
 		myCamera.rotate(virtualTour[currentTourStep].parameter1, virtualTour[currentTourStep].parameter2);
-		//myCamera.rotate(verticalAngle, horizontalAngle);
 	}
 
 	if (currentTourStep < actionCount)
@@ -441,7 +438,7 @@ void processMovement()
 	}
 	
 	if (glfwGetKey(glWindow, GLFW_KEY_M)) {
-		myCamera.setCameraPosition(glm::vec3(33.124573, 7.655275, 14.748343), glm::vec3(0.000000, 2.000000, -10.000000), glm::vec3(-0.697068, -0.226651, -0.680239));
+		myCamera.setCameraPosition(glm::vec3(38.346355, 14.105188, 18.539911), glm::vec3(0.000000, 2.000000, -10.000000), glm::vec3(-0.642764, 0.008726, -0.766015));
 		isCameraTour = true;
 	}
 
@@ -745,6 +742,9 @@ void initUniforms()
 
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
 	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+	isFogLocSkybox = glGetUniformLocation(myCustomShader.shaderProgram, "isFog");
+	glUniform1i(isFogLocSkybox, isFog);
 }
 
 void initBoundingBoxes() {
@@ -826,7 +826,6 @@ void renderScene()
 	glUniform1i(isNightLoc, isNightMode);
 
 	/****************** render the scene to the depth buffer (first pass) ******************/
-	//glCullFace(GL_FRONT);
 	depthMapShader.useShaderProgram();
 	
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
@@ -841,7 +840,6 @@ void renderScene()
 	drawObjects(depthMapShader);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glCullFace(GL_BACK);
 	/**************************** render the scene (second pass) ****************************/
 	myCustomShader.useShaderProgram();
 
@@ -887,6 +885,7 @@ void renderScene()
 	/**************************************** skybox *****************************************/
 	skyboxShader.useShaderProgram();
 	initSkybox();
+	glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "isFog"), isFog);
 	mySkyBox.Draw(skyboxShader, view, projection);
 
 	/***************************************** rain ******************************************/

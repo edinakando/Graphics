@@ -1,11 +1,28 @@
 #version 410 core
 
 in vec3 textureCoordinates;
+in vec4 fragPosEye;
 out vec4 color;
 
 uniform samplerCube skybox;
+uniform int isFog;
+
+float computeFog()
+{
+ 	float fogDensity = 0.5f;
+	float fragmentDistance = length(fragPosEye);
+	float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2));
+
+	return clamp(fogFactor, 0.0f, 1.0f);
+}
 
 void main()
 {
-    color = texture(skybox, textureCoordinates);
+    	float fogFactor = computeFog();
+    	vec4 fogColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
+
+	color = texture(skybox, textureCoordinates);
+	if(isFog == 1){
+		color = fogColor * (1 - fogColor) + texture(skybox, textureCoordinates) * fogFactor;
+	}
 }
