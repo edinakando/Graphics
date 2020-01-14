@@ -50,6 +50,7 @@ GLuint pointLightColorLoc;
 glm::mat3 lightDirMatrix;
 GLuint lightDirMatrixLoc;
 GLuint isFogLoc;
+GLuint isFlashlightLoc;
 GLuint isFogLocSkybox;
 GLuint isNightLoc;
 
@@ -65,6 +66,7 @@ float angle = 0.0f;
 
 bool isRaining = false;
 GLuint isFog = 0;
+GLuint isFlashlight = 0;
 
 gps::Model3D ground;
 gps::Model3D bridge;
@@ -417,6 +419,14 @@ void processMovement()
 		else isRaining = true;
 	}
 
+	if (glfwGetKey(glWindow, GLFW_KEY_T)) {
+		isFlashlight = 1;
+	}
+
+	if (glfwGetKey(glWindow, GLFW_KEY_Y)) {
+		isFlashlight = 0;
+	}
+
 	if (glfwGetKey(glWindow, GLFW_KEY_UP)) {
 		advance -= speed;
 	}
@@ -704,6 +714,9 @@ void initUniforms()
 	isFogLoc = glGetUniformLocation(myCustomShader.shaderProgram, "isFog");
 	glUniform1i(isFogLoc, isFog);
 
+	isFlashlightLoc = glGetUniformLocation(myCustomShader.shaderProgram, "isFlashlight");
+	glUniform1i(isFlashlightLoc, isFlashlight);
+
 	isNightLoc = glGetUniformLocation(myCustomShader.shaderProgram, "isNight");
 	glUniform1i(isNightLoc, isNightMode);
 
@@ -742,9 +755,6 @@ void initUniforms()
 
 	projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
 	glUniformMatrix4fv(glGetUniformLocation(skyboxShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-	isFogLocSkybox = glGetUniformLocation(myCustomShader.shaderProgram, "isFog");
-	glUniform1i(isFogLocSkybox, isFog);
 }
 
 void initBoundingBoxes() {
@@ -824,6 +834,7 @@ void renderScene()
 
 	glUniform1i(isFogLoc, isFog);
 	glUniform1i(isNightLoc, isNightMode);
+	glUniform1i(isFlashlightLoc, isFlashlight);
 
 	/****************** render the scene to the depth buffer (first pass) ******************/
 	depthMapShader.useShaderProgram();
@@ -842,6 +853,9 @@ void renderScene()
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	/**************************** render the scene (second pass) ****************************/
 	myCustomShader.useShaderProgram();
+
+	glUniform3fv(glGetUniformLocation(myCustomShader.shaderProgram, "spotlightPosition"), 1, glm::value_ptr(myCamera.getPosition()));
+	glUniform3fv(glGetUniformLocation(myCustomShader.shaderProgram, "spotlightDirection"), 1, glm::value_ptr(myCamera.getDirection()));
 
 	glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE,
 		glm::value_ptr(computeLightSpaceTrMatrix()));

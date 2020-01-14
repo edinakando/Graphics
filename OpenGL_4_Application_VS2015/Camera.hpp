@@ -33,6 +33,8 @@ namespace gps {
 		void rotate(float pitch, float yaw);
 		BoundingBox boundingBoxes[100];
 		void setCameraPosition(glm::vec3 cameraPosition, glm::vec3 cameraTarget, glm::vec3 cameraDirection);
+		glm::vec3 getPosition();
+		glm::vec3 getDirection();
 	private:
 		glm::vec3 cameraPosition;
 		glm::vec3 cameraTarget;

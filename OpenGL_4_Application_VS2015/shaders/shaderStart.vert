@@ -9,6 +9,7 @@ out vec4 fragPosEye;
 out vec4 fragPosLightSpace;
 out vec2 fragTexCoords;
 out mat4 fView;
+out vec4 worldPos;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -18,6 +19,7 @@ uniform mat4 lightSpaceTrMatrix;
 void main() 
 {
 	//compute eye space coordinates
+	worldPos = model * vec4(vPosition, 1.0f);
 	fragPosEye = view * model * vec4(vPosition, 1.0f);
 	normal = vNormal;
 	fragTexCoords = vTexCoords;

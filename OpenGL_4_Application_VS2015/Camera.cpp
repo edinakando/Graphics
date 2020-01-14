@@ -37,6 +37,16 @@ namespace gps {
 		this->cameraRightDirection = glm::normalize(glm::cross(this->cameraDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
 	}
 
+	glm::vec3 Camera::getPosition()
+	{
+		return cameraPosition;
+	}
+
+	glm::vec3 Camera::getDirection()
+	{
+		return cameraDirection;
+	}
+
 	float Camera::isCameraInsideBoundingBox(MOVE_DIRECTION direction, float speed)
 	{
 		glm::vec3 point = getCameraNewPosition(direction, speed);

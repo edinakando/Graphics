@@ -5,6 +5,7 @@ in vec4 fragPosEye;
 in vec4 fragPosLightSpace;
 in vec2 fragTexCoords;
 in mat4 fView;
+in vec4 worldPos;
 
 uniform	mat3 normalMatrix;
 uniform	vec3 lightDir;
@@ -18,6 +19,9 @@ uniform sampler2D specularTexture;
 uniform sampler2D shadowMap;
 uniform int isFog;
 uniform int isNight;
+uniform int isFlashlight;
+uniform vec3 spotlightPosition;
+uniform vec3 spotlightDirection;
 
 out vec4 fColor;
 
@@ -47,7 +51,7 @@ vec3 computeDirectLightComponents()
 		lightColor = vec3(1.0f, 1.0f, 1.0f);
 	else lightColor = vec3(0.0f, 0.0f, 0.0f);
 		
-	vec3 cameraPosEye = vec3(0.0f);//in eye coordinates, the viewer is situated at the origin
+	vec3 cameraPosEye = vec3(0.0f);
 	
 	//transform normal
 	vec3 normalEye = normalize(normalMatrix * normal);	
@@ -78,7 +82,7 @@ vec3 computePointLightComponents(vec4 lightPos){
 	vec3 cameraPosEye = vec3(0.0f);//in eye coordinates, the viewer is situated at the origin
 
 	vec3 normalEye = normalize(normalMatrix * normal);
-    vec3 lightDir = normalize(lightPos.xyz - fragPosEye.xyz);
+        vec3 lightDir = normalize(lightPos.xyz - fragPosEye.xyz);
 	vec3 viewDirN = normalize(cameraPosEye- fragPosEye.xyz);
 	vec3 halfVector = normalize(lightDir + viewDirN);
 
@@ -97,6 +101,35 @@ vec3 computePointLightComponents(vec4 lightPos){
 	return (ambientPoint + diffusePoint + specularPoint);
 }
 
+vec3 computeSpotlightLightComponents(){
+	float cutOff = 0.9659; //20
+        float outerCutOff = 0.9135; //24
+	float constant = 1.0;
+	float linear = 0.7;
+	float quadratic = 1.8;
+
+	vec3 lightDirN = normalize(spotlightPosition - worldPos.xyz);
+	float theta = dot(lightDirN, normalize(-spotlightDirection));
+
+	if(theta > cutOff){
+		vec3 normalEye = normalize(normalMatrix * normal); 
+		vec3 viewDirN = normalize(spotlightDirection - worldPos.xyz);
+		vec3 halfVector = normalize(lightDirN + viewDirN);
+
+		float dist = length(spotlightPosition - worldPos.xyz);
+		float att = 1.0f / (constant + linear * dist + quadratic * (dist * dist));
+		float specCoeff = pow(max(dot(normalEye, halfVector), 0.0f), shininess);
+
+		vec3 ambientSpotlight = vec3(0.5f, 0.5f, 0.5f) * att * ambientStrength * vec3(texture(diffuseTexture, fragTexCoords));
+		vec3 diffuseSpotlight = vec3(70.0f,70.0f, 70.0f) * att * max(dot(normalEye, lightDirN), 0.0f) * vec3(texture(diffuseTexture, fragTexCoords));
+		vec3 specularSpotlight = vec3(0.9f, 0.9f, 0.9f) * att * specularStrength * specCoeff * vec3(texture(specularTexture, fragTexCoords));
+
+		return ambientSpotlight + diffuseSpotlight + specularSpotlight;
+	}
+	else return vec3(0.0, 0.0, 0.0);
+}
+
+
 float computeShadow()
 {	
     // perform perspective divide
@@ -114,8 +147,7 @@ float computeShadow()
     float currentDepth = normalizedCoords.z;
     
     // Check whether current frag pos is in shadow
-    //float bias = 0.005f;
-	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
     float shadow = currentDepth - bias > closestDepth  ? 1.0f : 0.0f;
 
     return shadow;	
@@ -152,8 +184,11 @@ void main()
 	if(isNight == 1){
 		color += computePointLightComponents(pointLight1);
 		color += computePointLightComponents(pointLight2);
+
+		if(isFlashlight == 1)
+			color += computeSpotlightLightComponents();
 	}
-		
+
 	if(isFog == 1){
 		fColor = fogColor * (1 - fogColor) + color * fogFactor;
 	}
