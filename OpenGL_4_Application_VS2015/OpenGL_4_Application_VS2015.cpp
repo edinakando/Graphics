@@ -129,13 +129,14 @@ struct Particle {
 	GLfloat fadeSpeed;
 
 	Particle()
-		: position((float)((rand() % 100) - 60), (float)(20 + (rand() % 20)), (float)((rand() % 100) - 60)), 
-		  velocity(glm::vec3(0.5f, 1.5f, 0.5f)), life(10.0f), 
+		: position((float)((rand() % 100) - 50), (float)(20 + (rand() % 20)), (float)((rand() % 100) - 50)), 
+		  velocity(glm::vec3(0.5f, 1.5f, 0.5f)), 
+		  life(10.0f), 
 		  fadeSpeed(float(rand() % 100) / 1000.0f + 0.005f) { }
 };
 
-GLuint NR_OF_PARTICLES = 2000;
-Particle particles[2000];
+GLuint NR_OF_PARTICLES = 3000;
+Particle particles[3000];
 
 struct VirtualTour {
 	char action[10];
@@ -154,6 +155,36 @@ float spinnerAngle = 0.0f;
 bool isAnimation = false;
 glm::mat4 modelSpinner = glm::mat4(1.0f);
 
+
+
+void initParticles()
+{
+	for (GLuint i = 0; i < NR_OF_PARTICLES; ++i)
+		particles[i] = Particle();
+
+	GLfloat rainDropFormat[] = {
+		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+		-0.1f, 0.5f, 0.0f, 0.0f, 0.0f
+	};
+
+	glGenVertexArrays(1, &objectVAO);
+	glBindVertexArray(objectVAO);
+
+	glGenBuffers(1, &verticesVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, verticesVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(rainDropFormat), rainDropFormat, GL_STATIC_DRAW);
+
+	//vertex position attribute - index size type normalized stride start
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+
+	//vertex texture
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(0);
+}
+
 void respawnParticle(Particle& particle)
 {
 	particle.position.x = (float)(rand() % 100) - 60;
@@ -164,7 +195,7 @@ void respawnParticle(Particle& particle)
 	particle.fadeSpeed = float(rand() % 100) / 1000.0f + 0.005f;
 }
 
-void updateParticleSystem(GLfloat timePassed, GLuint newParticles)
+void updateParticleSystemState(GLfloat timePassed, GLuint newParticles)
 {
 	for (GLuint i = 0; i < NR_OF_PARTICLES; i++)
 	{
@@ -213,40 +244,7 @@ void drawRain()
 		else respawnParticle(particles[i]);
 	}
 
-	updateParticleSystem(0.1f, 5);
-}
-
-void initParticles()
-{
-	for (GLuint i = 0; i < NR_OF_PARTICLES; ++i)
-		particles[i] = Particle();
-
-	GLfloat rainDropFormat[] = {
-		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-
-		-0.25f, 0.5f, 0.0f, 0.0f, 0.0f,
-		-0.25f, 0.5f, 0.0f, 0.0f, 0.0f,
-		-0.25f, 0.5f, 0.0f, 0.0f, 0.0f
-	};
-	
-	glGenVertexArrays(1, &objectVAO);
-	glBindVertexArray(objectVAO);
-
-	glGenBuffers(1, &verticesVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, verticesVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(rainDropFormat), rainDropFormat, GL_STATIC_DRAW);
-
-	//vertex position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-
-	//vertex texture
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	glBindVertexArray(0);
+	updateParticleSystemState(0.1f, 5);
 }
 
 GLenum glCheckError_(const char *file, int line)
@@ -354,6 +352,52 @@ void cameraTour() {
 	}
 }
 
+gps::BoundingBox createBoundingBox(gps::Model3D object) {
+	gps::BoundingBox boundingBox;
+
+	for (int i = 0; i < object.meshes.size(); i++) {
+		for (gps::Vertex vertex : object.meshes[i].vertices) {
+			if (vertex.Position.x < boundingBox.min.x) {
+				boundingBox.min.x = vertex.Position.x;
+			}
+			else if (vertex.Position.x > boundingBox.max.x) {
+				boundingBox.max.x = vertex.Position.x;
+			}
+
+			if (vertex.Position.y < boundingBox.min.y) {
+				boundingBox.min.y = vertex.Position.y;
+			}
+			else if (vertex.Position.y > boundingBox.max.y) {
+				boundingBox.max.y = vertex.Position.y;
+			}
+
+			if (vertex.Position.z < boundingBox.min.z) {
+				boundingBox.min.z = vertex.Position.z;
+			}
+			else if (vertex.Position.z > boundingBox.max.z) {
+				boundingBox.max.z = vertex.Position.z;
+			}
+		}
+	}
+
+	return boundingBox;
+}
+
+void moveDragon() {
+	view = myCamera.getViewMatrix();
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+	modelDragon = glm::translate(modelDragon, glm::vec3(0, translateOnY, advance));
+	modelDragon = glm::rotate(modelDragon, dragonAngle, glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelDragon));
+
+	myCustomShader.useShaderProgram();
+	dragon.Draw(myCustomShader);
+
+	dragonAngle = 0;
+	translateOnY = 0;
+	advance = 0;
+}
 
 void processMovement()
 {
@@ -458,9 +502,9 @@ void processMovement()
 	}
 
 	if (glfwGetKey(glWindow, GLFW_KEY_B)) {
-			isAnimation = false;
-			spinnerAngle = 0.0;
-			modelSpinner = glm::mat4(1.0f);
+		isAnimation = false;
+		spinnerAngle = 0.0;
+		modelSpinner = glm::mat4(1.0f);
 	}
 
 	if (glfwGetKey(glWindow, GLFW_KEY_N)) {
@@ -492,52 +536,6 @@ void processMovement()
 	}
 }
 
-gps::BoundingBox createBoundingBox(gps::Model3D object) {
-	gps::BoundingBox boundingBox;
-
-	for (int i = 0; i < object.meshes.size(); i++) {
-		for (gps::Vertex vertex : object.meshes[i].vertices) {
-			if (vertex.Position.x < boundingBox.min.x) {
-				boundingBox.min.x = vertex.Position.x;
-			}
-			else if (vertex.Position.x > boundingBox.max.x) {
-				boundingBox.max.x = vertex.Position.x;
-			}
-
-			if (vertex.Position.y < boundingBox.min.y) {
-				boundingBox.min.y = vertex.Position.y;
-			}
-			else if (vertex.Position.y > boundingBox.max.y) {
-				boundingBox.max.y = vertex.Position.y;
-			}
-
-			if (vertex.Position.z < boundingBox.min.z) {
-				boundingBox.min.z = vertex.Position.z;
-			}
-			else if (vertex.Position.z > boundingBox.max.z) {
-				boundingBox.max.z = vertex.Position.z;
-			}
-		}
-	}
-	
-	return boundingBox;
-}
-
-void moveDragon() {
-	view = myCamera.getViewMatrix();
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-	modelDragon = glm::translate(modelDragon, glm::vec3(0, translateOnY, advance));
-	modelDragon = glm::rotate(modelDragon, dragonAngle, glm::vec3(0, 1, 0));
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelDragon));
-
-	myCustomShader.useShaderProgram();
-	dragon.Draw(myCustomShader);
-
-	dragonAngle = 0;
-	translateOnY = 0;
-	advance = 0;
-}
 
 bool initOpenGLWindow()
 {
@@ -674,12 +672,12 @@ void initSkybox() {
 			faces.push_back("textures/night_skybox/starfield_ft.tga");
 		}
 		else {
-			faces.push_back("textures/skybox/lakes_rt.tga");
-			faces.push_back("textures/skybox/lakes_lf.tga");
-			faces.push_back("textures/skybox/lakes_up.tga");
-			faces.push_back("textures/skybox/lakes_dn.tga");
-			faces.push_back("textures/skybox/lakes_bk.tga");
-			faces.push_back("textures/skybox/lakes_ft.tga");
+			faces.push_back("textures/skybox/right.tga");
+			faces.push_back("textures/skybox/left.tga");
+			faces.push_back("textures/skybox/top.tga");
+			faces.push_back("textures/skybox/bottom.tga");
+			faces.push_back("textures/skybox/back.tga");
+			faces.push_back("textures/skybox/front.tga");
 		}
 
 		isDayPassed = false;
@@ -776,7 +774,6 @@ void initBoundingBoxes() {
 	}*/
 }
 
-
 void drawAnimation() {
 	myCustomShader.useShaderProgram();
 
@@ -851,6 +848,7 @@ void renderScene()
 	drawObjects(depthMapShader);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	/**************************** render the scene (second pass) ****************************/
 	myCustomShader.useShaderProgram();
 
@@ -891,16 +889,17 @@ void renderScene()
 
 	lightCube.Draw(lightShader);
 
-	/*************************************** animation ***************************************/
-	myCustomShader.useShaderProgram();
-	moveDragon();
-	drawAnimation();
-
 	/**************************************** skybox *****************************************/
 	skyboxShader.useShaderProgram();
 	initSkybox();
 	glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "isFog"), isFog);
 	mySkyBox.Draw(skyboxShader, view, projection);
+
+
+	/*************************************** animation ***************************************/
+	myCustomShader.useShaderProgram();
+	moveDragon();
+	drawAnimation();
 
 	/***************************************** rain ******************************************/
 	if (isRaining) {

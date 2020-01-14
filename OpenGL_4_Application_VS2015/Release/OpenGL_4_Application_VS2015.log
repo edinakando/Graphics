@@ -1,21 +1,21 @@
 ﻿  OpenGL_4_Application_VS2015.cpp
 C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(57,13): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
 C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(58,13): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(203,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(310,16): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(311,16): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(312,10): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(313,10): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(439,22): warning C4305: '+=': truncation from 'double' to 'GLfloat'
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(443,22): warning C4305: '-=': truncation from 'double' to 'GLfloat'
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(457,21): warning C4305: '=': truncation from 'double' to 'float'
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(498,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(589,33): warning C4305: 'argument': truncation from 'double' to 'GLclampf'
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(234,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(308,16): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(309,16): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(310,10): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(311,10): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(358,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(483,22): warning C4305: '+=': truncation from 'double' to 'GLfloat'
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(487,22): warning C4305: '-=': truncation from 'double' to 'GLfloat'
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(501,21): warning C4305: '=': truncation from 'double' to 'float'
+C:\Users\edina\42\GPS\proiect\OpenGL\OpenGL_4_Application_VS2015\OpenGL_4_Application_VS2015.cpp(587,33): warning C4305: 'argument': truncation from 'double' to 'GLclampf'
 LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
   Generating code
-  1 of 1784 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+  0 of 1784 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    8 functions had inline decision re-evaluated but remain unchanged
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
 LINK : warning LNK4286: symbol '___glewGenBuffers' defined in 'glew32s.lib(glew.obj)' is imported by 'Mesh.obj'
 LINK : warning LNK4286: symbol '___glewGenVertexArrays' defined in 'glew32s.lib(glew.obj)' is imported by 'Mesh.obj'
